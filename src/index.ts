@@ -1,23 +1,41 @@
-import { Elysia, ws } from 'elysia'
+import { Elysia, t } from 'elysia'
 
 const app = new Elysia()
-    .use(ws())
     .ws('/ws', {
-        message(ws, message) {
-            console.log('message from:', ws, message)
-            if (typeof message == 'string' && message.startsWith('private')) {
-                ws.send('this message was private!')
+        body: t.Object({
+            content: t.String(),
+            username: t.String(),
+            group: t.String()
+        }),
+        message(ws, message) {     
+            console.log(message)
+            if (!(message.content == "SWITCH GROUP" && message.username == "SYSTEM")) {
+                ws.publish(`${message.group}`, JSON.stringify({ 
+                    content: message.content, 
+                    username: message.username, 
+                    group: message.group 
+                }))
                 return
             }
-            ws.publish('chat', message)
+            ws.send(JSON.stringify({ 
+                content: `There are currently no groups to switch to!`,
+                username: 'SERVER', 
+                group: 'System'
+           }))
         },
         close(ws) {
             console.log('a client disconnected')
             ws.close()
         },
         open(ws) {
-            ws.subscribe('chat')
-            ws.send('welcome to the server!')
+            ws.subscribe('Global')
+            ws.subscribe('Match')
+            ws.subscribe('Team')
+            ws.send(JSON.stringify({ 
+                 content: 'welcome to the server!',
+                 username: 'SERVER', 
+                 group: 'System'
+                }))
             console.log('new connection')
         }
     })
